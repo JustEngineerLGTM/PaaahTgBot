@@ -5,14 +5,17 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InlineQueryResults;
 
 namespace PaaahBot;
 
-public class BotWorker : BackgroundService
+public partial class BotWorker : BackgroundService
 {
     private readonly IConfiguration _configuration;
     private TelegramBotClient? _botClient;
-    private readonly Regex _regex = new(@"^П[аАa]{2,}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    [GeneratedRegex("^П[аАa]{2,}$", RegexOptions.IgnoreCase)]
+    private static partial Regex Regex { get; }
 
     public BotWorker(IConfiguration configuration)
     {
@@ -22,6 +25,7 @@ public class BotWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var botToken = _configuration["BotConfiguration:BotToken"];
+
         if (string.IsNullOrWhiteSpace(botToken))
         {
             throw new ArgumentNullException(nameof(botToken), "Bot token is not configured.");
@@ -31,7 +35,10 @@ public class BotWorker : BackgroundService
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = new[] { UpdateType.Message }
+            AllowedUpdates = new[]
+            {
+                UpdateType.Message, UpdateType.InlineQuery
+            }
         };
 
         _botClient.StartReceiving(
@@ -45,18 +52,54 @@ public class BotWorker : BackgroundService
         Console.WriteLine($"Start listening for @{me.Username}");
     }
 
+    private async Task OnInlineQueryReceived(InlineQuery inlineQuery, ITelegramBotClient botClient)
+    {
+        var fileIds = new[]
+        {
+            "AgACAgIAAxkBAAEBeS9ozG3KwLppvha4wHvmArMNFePAaAACuvkxG7V6YErWSDPl1QYiXgEAAwIAA3gAAzYE",
+            "AgACAgIAAxkBAAEBeStozG3EAAEnwfqgU4qPSrTrwkDuoAwAAqP5MRu1emBKAspCmbOD-ZoBAAMCAAN5AAM2BA",
+            "AgACAgIAAxkBAAEBeSJozG2Pl68NVN-bQma93nGKMR26wQACufkxG7V6YErUx0eWsjoUjwEAAwIAA3kAAzYE"
+        };
+
+        if (fileIds.Length == 0)
+            return;
+
+        var results = new List<InlineQueryResultCachedPhoto>();
+        var counter = 0;
+        foreach (var fileId in fileIds)
+        {
+            results.Add(new InlineQueryResultCachedPhoto( $"{counter}", fileId));
+            counter++;
+        }
+
+        await botClient.AnswerInlineQuery(
+            inlineQuery.Id,
+            results,
+            isPersonal: true,
+            cacheTime: 0
+        );
+    }
+
+
     private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
+        if (update.Type == UpdateType.InlineQuery && update.InlineQuery != null)
+        {
+            await OnInlineQueryReceived(update.InlineQuery, botClient);
+        }
         if (update.Message is not { } message)
             return;
         if (message.Text is not { } messageText)
             return;
 
-        if (_regex.IsMatch(messageText))
+        
+
+        if (Regex.IsMatch(messageText))
         {
             Console.WriteLine($"Received a '{messageText}' message in chat {message.Chat.Id}.");
 
             const string picturesDirectory = "PaaahPictures";
+
             if (!Directory.Exists(picturesDirectory))
             {
                 await botClient.SendMessage(
@@ -67,17 +110,14 @@ public class BotWorker : BackgroundService
             }
 
             var imageFiles = Directory.GetFiles(picturesDirectory);
+
             if (imageFiles.Length == 0)
             {
-                await botClient.SendMessage(
-                    chatId: message.Chat.Id,
-                    text: "В папке 'PaaahPictures' нет картинок!",
-                    cancellationToken: cancellationToken);
                 return;
             }
 
             var randomImage = imageFiles[Random.Shared.Next(imageFiles.Length)];
-            
+
             await using var stream = File.OpenRead(randomImage);
             await botClient.SendPhoto(
                 chatId: message.Chat.Id,
@@ -86,7 +126,8 @@ public class BotWorker : BackgroundService
         }
     }
 
-    private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+    private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception,
+        CancellationToken cancellationToken)
     {
         Console.WriteLine($"Telegram API Error: {exception.Message}");
         return Task.CompletedTask;
