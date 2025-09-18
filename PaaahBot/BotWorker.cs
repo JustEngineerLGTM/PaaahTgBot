@@ -5,7 +5,6 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Extensions;
 
 namespace PaaahBot;
 
@@ -57,21 +56,32 @@ public class BotWorker : BackgroundService
         {
             Console.WriteLine($"Received a '{messageText}' message in chat {message.Chat.Id}.");
 
-            const string imagePath = "Paah.png";
-            if (!System.IO.File.Exists(imagePath))
+            const string picturesDirectory = "PaaahPictures";
+            if (!Directory.Exists(picturesDirectory))
             {
-                Console.WriteLine($"Image not found at {imagePath}");
                 await botClient.SendMessage(
                     chatId: message.Chat.Id,
-                    text: "Картинка Paah.png не найдена!",
+                    text: "Папка с картинками 'PaaahPictures' не найдена!",
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            await using var stream = System.IO.File.OpenRead(imagePath);
+            var imageFiles = Directory.GetFiles(picturesDirectory);
+            if (imageFiles.Length == 0)
+            {
+                await botClient.SendMessage(
+                    chatId: message.Chat.Id,
+                    text: "В папке 'PaaahPictures' нет картинок!",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var randomImage = imageFiles[Random.Shared.Next(imageFiles.Length)];
+            
+            await using var stream = File.OpenRead(randomImage);
             await botClient.SendPhoto(
                 chatId: message.Chat.Id,
-                photo: new InputFileStream(stream, "Paah.jpg"),
+                photo: new InputFileStream(stream, Path.GetFileName(randomImage)),
                 cancellationToken: cancellationToken);
         }
     }
