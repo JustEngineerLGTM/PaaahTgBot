@@ -15,7 +15,9 @@ public partial class BotWorker : BackgroundService
     private TelegramBotClient? _botClient;
 
     [GeneratedRegex("^П[аАa]{2,}$", RegexOptions.IgnoreCase)]
-    private static partial Regex Regex { get; }
+    private static partial Regex RegexPaa { get; }
+    [GeneratedRegex("^Ф[аАa]{2,}$", RegexOptions.IgnoreCase)]
+    private static partial Regex RegexFaa { get; }
 
     public BotWorker(IConfiguration configuration)
     {
@@ -56,9 +58,9 @@ public partial class BotWorker : BackgroundService
     {
         var fileIds = new[]
         {
-            "AgACAgIAAxkBAAEBeS9ozG3KwLppvha4wHvmArMNFePAaAACuvkxG7V6YErWSDPl1QYiXgEAAwIAA3gAAzYE",
-            "AgACAgIAAxkBAAEBeStozG3EAAEnwfqgU4qPSrTrwkDuoAwAAqP5MRu1emBKAspCmbOD-ZoBAAMCAAN5AAM2BA",
-            "AgACAgIAAxkBAAEBeSJozG2Pl68NVN-bQma93nGKMR26wQACufkxG7V6YErUx0eWsjoUjwEAAwIAA3kAAzYE"
+            "AgACAgIAAxkBAAEItwxpWXpnupCoJHZAkV5nNTdTplGv1wACo_kxG7V6YEoCykKZs4P5mgEAAwIAA3kAAzgE",
+            "AgACAgIAAxkBAAEItydpWXsAAUKjjuMefFstVLHUL4kHNE4AArn5MRu1emBK1MdHlrI6FI8BAAMCAAN5AAM4BA",
+            "AgACAgIAAxkBAAEItzZpWXslJ6mSKwJfcf1NtjLJgUGlvwACuvkxG7V6YErWSDPl1QYiXgEAAwIAA3gAAzgE"
         };
 
         if (fileIds.Length == 0)
@@ -94,7 +96,7 @@ public partial class BotWorker : BackgroundService
 
         
 
-        if (Regex.IsMatch(messageText))
+        if (RegexPaa.IsMatch(messageText))
         {
             Console.WriteLine($"Received a '{messageText}' message in chat {message.Chat.Id}.");
 
